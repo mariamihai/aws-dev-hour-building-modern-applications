@@ -5,7 +5,7 @@ Current project is based on the 2021 [Twitch series](https://pages.awscloud.com/
 # The Series
 
 ## Episode 1: AWS CDK
-Twitch clip [here](https://www.twitch.tv/videos/892197005).
+Twitch video [here](https://www.twitch.tv/videos/892197005).
 
 The focus of this week is creating the resources: <br>
 - an S3 bucket will store the images <br>
@@ -82,6 +82,45 @@ Console or by using the cli (`aws s3 cp ../<file.jpg> s3://<bucket-name>`). The 
 DynamoDB table with contain the labels for the provided images.
 
 ## Episode 2: AWS Lambda & Amazon DynamoDB
+Twitch video [here](https://www.twitch.tv/aws/video/901982184).
+
+The focus of this week is:
+- creating a new S3 bucket for the thumbnail images
+- updating the Lambda function used with Amazon Rekognition with a Lambda layer containing the Python library for 
+resizing the images and putting this image in the newly created S3 bucket
+- creating a Lambda function for interacting with the user, by either returning the labels for an image or by deleting 
+the image, the labels in the DynamoDB and the thumbnail image
+
+#### Testing
+Adding an image in the initial S3 bucket (`cdk-rekn-bucket`) will trigger the Lambda function and will generate the 
+thumbnail image in the second S3 bucket (`cdk-rekn-bucket-resized`) and will write the labels in the DynamoDB table 
+(`ImageLabels`).
+
+In the Lambda Management Console test the service function by providing the `getLabels` action:
+```
+{
+  "action": "getLabels",
+  "key": "<image-name>"
+}
+```
+A JSON containing the labels should be returned:
+```
+{
+  "image": "<image-name>",
+  "object1": "<label-1>",
+  "object2": "<label-2>"
+}
+```
+
+The `deleteImage` action can be tested as well from the Management Console:
+```
+{
+  "action": "deleteImage",
+  "key": "<image-name>"
+}
+```
+And the result got is `"Delete request successfully processed"` and the images are removed from both S3 buckets and the 
+entry in the DynamoDb table is deleted as well.
 
 ## Episode 3: Amazon API Gateway
 
