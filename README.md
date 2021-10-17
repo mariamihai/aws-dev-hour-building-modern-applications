@@ -123,6 +123,14 @@ And the result got is `"Delete request successfully processed"` and the images a
 entry in the DynamoDb table is deleted as well.
 
 ## Episode 3: Amazon API Gateway
+Twitch video [here](https://www.twitch.tv/videos/910524542).
+
+The week focuses on adding a REST Api Gateway and adding integration with the service Lambda function.
+
+The API Gateway package is needed (`npm install @aws-cdk/aws-apigateway`).
+
+The stack was updated with an API Gateway REST API, Lambda integration and resources on `/images` (GET and DELETE). 
+Getting all labels for an image will result in a call like this: `https://<GUID>.execute-api.<REGION>.amazonaws.com/<STAGE>/images?action=getLabels&key=<image-name.jpg>`
 
 ## Episode 4: AWS IAM & Amazon Cognito
 
