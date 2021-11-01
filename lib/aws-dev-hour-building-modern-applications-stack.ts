@@ -1,13 +1,13 @@
 import * as cdk from '@aws-cdk/core';
-
+import {CfnOutput, Duration} from '@aws-cdk/core';
+import {AuthorizationType, PassthroughBehavior} from "@aws-cdk/aws-apigateway";
 import s3 = require('@aws-cdk/aws-s3');
 import lambda = require('@aws-cdk/aws-lambda');
 import event_sources = require('@aws-cdk/aws-lambda-event-sources');
 import dynamodb = require('@aws-cdk/aws-dynamodb');
 import iam = require('@aws-cdk/aws-iam');
-import { Duration } from '@aws-cdk/core';
 import apigw = require('@aws-cdk/aws-apigateway');
-import { PassthroughBehavior } from "@aws-cdk/aws-apigateway";
+import cognito = require('@aws-cdk/aws-cognito');
 
 const imageBucketName = "cdk-rekn-bucket";
 const resizeImageBucketName = imageBucketName + "-resized";
@@ -27,8 +27,8 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
     });
     // Give some output after the cdk has been deployed and the resource has been created
     // (CloudFormation output)
-    new cdk.CfnOutput(this, 'imageBucket', {value: imageBucket.bucketName});
-
+    new CfnOutput(this, 'imageBucket', {value: imageBucket.bucketName});
+    const imageBucketArn = imageBucket.bucketArn;
 
     // --------------------------------------------
     // Thumbnail Bucket
@@ -37,7 +37,8 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true
     });
-    new cdk.CfnOutput(this, 'resizeImageBucket', {value: resizeImageBucket.bucketName});
+    new CfnOutput(this, 'resizeImageBucket', {value: resizeImageBucket.bucketName});
+    const resizedBucketArn = resizeImageBucket.bucketArn;
 
 
     // --------------------------------------------
@@ -50,7 +51,7 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY
     })
-    new cdk.CfnOutput(this, 'dbTable', {value: table.tableName});
+    new CfnOutput(this, 'dbTable', {value: table.tableName});
 
 
     // --------------------------------------------
@@ -111,7 +112,6 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
     resizeImageBucket.grantWrite(serviceFn);
     table.grantReadWriteData(serviceFn);
 
-
     // --------------------------------------------
     // API Gateway
     // --------------------------------------------
@@ -124,8 +124,7 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
       proxy: false
       // Can add deployOptions as stageName here as well
     });
-    new cdk.CfnOutput(this, 'apiUrl', {value: api.url})
-
+    new CfnOutput(this, 'apiUrl', {value: api.url})
 
     // --------------------------------------------
     // API Gateway with AWS Lambda integration
@@ -166,12 +165,101 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
     });
 
     // --------------------------------------------
+    // Cognito User Pool Authentication
+    // --------------------------------------------
+    const userPool = new cognito.UserPool(this, 'UserPool', {
+      selfSignUpEnabled: true, // Allow Sign Up
+      autoVerify: { email: true }, // Verify email address by sending a verification code
+      signInAliases: { username: true, email: true } // Set email as an alias
+    });
+
+    const auth = new apigw.CfnAuthorizer(this, 'APIGatewayAuthorizer', {
+      name: 'customer-authorizer',
+      identitySource: 'method.request.header.Authorization',
+      providerArns: [userPool.userPoolArn],
+      restApiId: api.restApiId,
+      type: AuthorizationType.COGNITO,
+    });
+
+    const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
+      userPool,
+      generateSecret: false // Don't need to generate secret for web app running on browsers
+    });
+
+    const identityPool = new cognito.CfnIdentityPool(this, 'ImageRekognitionIdentityPool', {
+      allowUnauthenticatedIdentities: false, // Don't allow unauthenticated users
+      cognitoIdentityProviders: [
+        {
+          clientId: userPoolClient.userPoolClientId,
+          providerName: userPool.userPoolProviderName
+        }
+      ]
+    });
+
+    const authenticatedRole = new iam.Role(this, "ImageRekognitionAuthenticatedRole", {
+      assumedBy: new iam.FederatedPrincipal(
+          "cognito-identity.amazonaws.com",
+          {
+            StringEquals: {
+              "cognito-identity.amazonaws.com:aud": identityPool.ref,
+            },
+            "ForAnyValue:StringLike": {
+              "cognito-identity.amazonaws.com:amr": "authenticated",
+            },
+          },
+          "sts:AssumeRoleWithWebIdentity"
+      ),
+    });
+
+    // IAM policy granting users permission to upload, download and delete their own pictures
+    authenticatedRole.addToPolicy(
+        new iam.PolicyStatement({
+          actions: [
+            "s3:GetObject",
+            "s3:PutObject"
+          ],
+          effect: iam.Effect.ALLOW,
+          resources: [
+            imageBucketArn + "/private/${cognito-identity.amazonaws.com:sub}/*",
+            imageBucketArn + "/private/${cognito-identity.amazonaws.com:sub}",
+            resizedBucketArn + "/private/${cognito-identity.amazonaws.com:sub}/*",
+            resizedBucketArn + "/private/${cognito-identity.amazonaws.com:sub}"
+          ],
+        })
+    );
+
+    // IAM policy granting users permission to list their pictures
+    authenticatedRole.addToPolicy(
+        new iam.PolicyStatement({
+          actions: ["s3:ListBucket"],
+          effect: iam.Effect.ALLOW,
+          resources: [
+            imageBucketArn,
+            resizedBucketArn
+          ],
+          conditions: {"StringLike": {"s3:prefix": ["private/${cognito-identity.amazonaws.com:sub}/*"]}}
+        })
+    );
+
+    new cognito.CfnIdentityPoolRoleAttachment(this, "IdentityPoolRoleAttachment", {
+      identityPoolId: identityPool.ref,
+      roles: { authenticated: authenticatedRole.roleArn },
+    });
+
+    // Export values of Cognito
+    new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
+    new CfnOutput(this, "AppClientId", { value: userPoolClient.userPoolClientId });
+    new CfnOutput(this, "IdentityPoolId", { value: identityPool.ref });
+
+    // --------------------------------------------
     // API Gateway /images resources
     // --------------------------------------------
     const imageAPI = api.root.addResource('images');
 
     // GET /images
     imageAPI.addMethod('GET', lambdaIntegration, {
+      authorizationType: AuthorizationType.COGNITO,
+      authorizer: { authorizerId: auth.ref },
       requestParameters: {
         'method.request.querystring.action': true,
         'method.request.querystring.key': true
@@ -194,6 +282,8 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
 
     // DELETE /images
     imageAPI.addMethod('DELETE', lambdaIntegration, {
+      authorizationType: AuthorizationType.COGNITO,
+      authorizer: { authorizerId: auth.ref },
       requestParameters: {
         'method.request.querystring.action': true,
         'method.request.querystring.key': true

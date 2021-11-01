@@ -73,6 +73,10 @@ Initialization of the project was done by specifying the language used: `cdk ini
 
 Several packages were needed: `npm install @aws-cdk/aws-s3 @aws-cdk/aws-lambda @aws-cdk/aws-lambda-event-sources @aws-cdk/aws-dynamodb @aws-cdk/aws-iam`
 
+API Gateway is required from Episode 3: `npm install @aws-cdk/aws-apigateway`
+
+Cognito is needed as well from Episode 4: `npm i @aws-cdk/aws-cognito`
+
 #### Run the application
 To actual use the app run `npm install`.
 
@@ -133,6 +137,14 @@ The stack was updated with an API Gateway REST API, Lambda integration and resou
 Getting all labels for an image will result in a call like this: `https://<GUID>.execute-api.<REGION>.amazonaws.com/<STAGE>/images?action=getLabels&key=<image-name.jpg>`
 
 ## Episode 4: AWS IAM & Amazon Cognito
+Twitch video [here](https://www.twitch.tv/aws/video/919646743).
+
+The week focuses on integrating AWS Cognito.
+
+Add Cognito package: `npm i @aws-cdk/aws-cognito`.
+
+The stack was updated with a user pool and authorizer for API Gateway, then integrates an identity pool with specific role 
+containing policies for accessing own S3 stored images.
 
 ## Episode 5: Amazon S3
 
@@ -143,3 +155,7 @@ Getting all labels for an image will result in a call like this: `https://<GUID>
 
 # Resources
 AWS Dev Hour Building Modern Application [page](https://pages.awscloud.com/global-traincert-twitch-dev-hour-building-modern-applications.html) with resources.
+
+[Backend](https://github.com/aws-samples/aws-dev-hour-backend) GitHub project.
+
+[Frontend](https://github.com/aws-samples/aws-dev-hour-frontend) GitHub project.
