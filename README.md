@@ -75,7 +75,9 @@ Several packages were needed: `npm install @aws-cdk/aws-s3 @aws-cdk/aws-lambda @
 
 API Gateway is required from Episode 3: `npm install @aws-cdk/aws-apigateway`
 
-Cognito is needed as well from Episode 4: `npm i @aws-cdk/aws-cognito`
+Cognito is needed as well from Episode 4: `npm install @aws-cdk/aws-cognito`
+
+AWS S3 Deployment package required for Episode 5: `npm install @aws-cdk/aws-s3-deployment`
 
 #### Run the application
 To actual use the app run `npm install`.
@@ -141,12 +143,24 @@ Twitch video [here](https://www.twitch.tv/aws/video/919646743).
 
 The week focuses on integrating AWS Cognito.
 
-Add Cognito package: `npm i @aws-cdk/aws-cognito`.
+Add Cognito package: `npm install @aws-cdk/aws-cognito`.
 
 The stack was updated with a user pool and authorizer for API Gateway, then integrates an identity pool with specific role 
 containing policies for accessing own S3 stored images.
 
 ## Episode 5: Amazon S3
+Twitch video [here](https://www.twitch.tv/aws/video/929175626).
+
+The focus of current's week is S3 in the context of hosting a static website and integrating it with API Gateway and 
+the S3 buckets used for storing the images and thumbnail images.
+
+AWS S3 Deployment package required for this episode: `npm install @aws-cdk/aws-s3-deployment`
+
+Build the assets for the front end project with `npm run build` and put the files in the `/public` folder. The Frontend 
+GitHub project can be found [here](https://github.com/aws-samples/aws-dev-hour-frontend).
+
+The site is served from the website bucket. To be able to upload, retrieve or delete images, CORS policies need to be 
+set on the image buckets. This is done with `addCorsRule`.
 
 ## Episode 6: Amazon SQS
 
