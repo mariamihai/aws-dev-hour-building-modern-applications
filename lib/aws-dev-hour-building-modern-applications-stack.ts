@@ -378,6 +378,8 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
       // Recommended is long polling and maximum time is 20 s.
       // If low traffic, then Lambda might wait 20 s.
       receiveMessageWaitTime: cdk.Duration.seconds(20),
+      // Set the type of queue. Default queue is standard
+      // fifo: true,
       deadLetterQueue: {
         maxReceiveCount: 2,
         queue: dlQueue
@@ -394,6 +396,9 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
     // =====================================================================================
     // The Rekognition Lambda will consume messages from SQS
     // =====================================================================================
-    rekFn.addEventSource(new event_sources.SqsEventSource(queue));
+    // Can add batchSize to be processed. Defaults to 10.
+    rekFn.addEventSource(new event_sources.SqsEventSource(queue, {
+      batchSize: 10
+    }));
   }
 }
