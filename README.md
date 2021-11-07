@@ -79,6 +79,8 @@ Cognito is needed as well from Episode 4: `npm install @aws-cdk/aws-cognito`
 
 AWS S3 Deployment package required for Episode 5: `npm install @aws-cdk/aws-s3-deployment`
 
+AWS S3 Notifications and SQS packages are needed for episode 6: `npm install @aws-cdk/aws-s3-notifications @aws-cdk/aws-sqs`
+
 #### Run the application
 To actual use the app run `npm install`.
 
@@ -163,6 +165,17 @@ The site is served from the website bucket. To be able to upload, retrieve or de
 set on the image buckets. This is done with `addCorsRule`.
 
 ## Episode 6: Amazon SQS
+Twitch video [here](https://www.twitch.tv/videos/938129601).
+
+The current episode focuses on scaling and decoupling the imageBucket from rekognitionlambda.
+
+Next packages are needed for current episode: `npm install @aws-cdk/aws-s3-notifications @aws-cdk/aws-sqs`
+
+AWS S3 Notifications is used to notify SQS when an image is uploaded to the S3 imageBucket. The notifications 
+will be delivered at least once, in a few seconds or more than a minute.
+
+Lambda polls up to 10 messages at once from the SQS queue. A batch window can be configured to buffer records 
+for up to 5 minutes.
 
 ## Episode 7: Deployment Pipeline
 
