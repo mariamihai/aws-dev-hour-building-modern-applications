@@ -4,6 +4,8 @@ import {AuthorizationType, PassthroughBehavior} from "@aws-cdk/aws-apigateway";
 import s3 = require('@aws-cdk/aws-s3');
 import { HttpMethods } from '@aws-cdk/aws-s3';
 import s3deploy = require('@aws-cdk/aws-s3-deployment');
+import s3n = require('@aws-cdk/aws-s3-notifications');
+import sqs = require('@aws-cdk/aws-sqs');
 import lambda = require('@aws-cdk/aws-lambda');
 import event_sources = require('@aws-cdk/aws-lambda-event-sources');
 import dynamodb = require('@aws-cdk/aws-dynamodb');
@@ -135,7 +137,10 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
       }
     })
 
-    rekFn.addEventSource(new event_sources.S3EventSource(imageBucket, { events: [ s3.EventType.OBJECT_CREATED ]}));
+    // Replaced with rekFn.addEventSource(new event_sources.SqsEventSource(queue));
+    // => Consuming messages from an SQS queue instead of getting notified when image is added
+    // in the imageBucket
+    //rekFn.addEventSource(new event_sources.S3EventSource(imageBucket, { events: [ s3.EventType.OBJECT_CREATED ]}));
     imageBucket.grantRead(rekFn);
     resizeImageBucket.grantPut(rekFn);
     table.grantWriteData(rekFn);
@@ -356,5 +361,39 @@ export class AwsDevHourBuildingModernApplicationsStack extends cdk.Stack {
         }
       ]
     });
+
+
+    // =====================================================================================
+    // SQS and DeadLetter queues
+    // =====================================================================================
+    const dlQueue = new sqs.Queue(this, 'ImageDLQueue', {
+      queueName: 'ImageDLQueue'
+    });
+
+    const queue = new sqs.Queue(this, 'ImageQueue', {
+      queueName: 'ImageQueue',
+      // SQS prevents other consumers to receive or process a message for this amount of time
+      visibilityTimeout: cdk.Duration.seconds(30),
+      // If 0, then this is short polling
+      // Recommended is long polling and maximum time is 20 s.
+      // If low traffic, then Lambda might wait 20 s.
+      receiveMessageWaitTime: cdk.Duration.seconds(20),
+      deadLetterQueue: {
+        maxReceiveCount: 2,
+        queue: dlQueue
+      }
+    });
+
+
+    // =====================================================================================
+    // Create Notification to SQS from imageBucket
+    // =====================================================================================
+    imageBucket.addObjectCreatedNotification(new s3n.SqsDestination(queue), { prefix: 'private/' });
+
+
+    // =====================================================================================
+    // The Rekognition Lambda will consume messages from SQS
+    // =====================================================================================
+    rekFn.addEventSource(new event_sources.SqsEventSource(queue));
   }
 }
